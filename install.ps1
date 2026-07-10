@@ -2,7 +2,7 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-$Source = Join-Path $PSScriptRoot "orchestrate-agents"
+$Source = Join-Path $PSScriptRoot "skills\orchestrate-agents"
 $SkillFile = Join-Path $Source "SKILL.md"
 $ConfigDir = if ($env:CLAUDE_CONFIG_DIR) {
     $env:CLAUDE_CONFIG_DIR

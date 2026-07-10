@@ -64,44 +64,45 @@ For non-interactive environments, set `XAI_API_KEY`. If another executable named
 
 ## Install
 
-First clone the repository and enter it:
+### Recommended: install from GitHub
+
+Install globally for Claude Code with the Skills CLI:
 
 ```sh
-git clone https://github.com/<owner>/<repository>.git
-cd <repository>
+npx skills add codemeall/orchestrator-ai@orchestrate-agents -g -y
 ```
 
-Replace `<owner>` and `<repository>` with the values shown on the repository's GitHub page.
+`-g` installs to `~/.claude/skills/` (available in every project). `-y` skips confirmation prompts.
 
-### macOS or Linux
-
-Run the installer:
+Alternatively, with GitHub CLI (v2.90.0+):
 
 ```sh
+gh skill install codemeall/orchestrator-ai orchestrate-agents --agent claude-code --scope user
+```
+
+### Local clone (development)
+
+Clone the repository and run the installer:
+
+```sh
+git clone https://github.com/codemeall/orchestrator-ai.git
+cd orchestrator-ai
 ./install.sh
 ```
 
-The installer creates a symbolic link at:
-
-```text
-~/.claude/skills/orchestrate-agents
-```
-
-If `CLAUDE_CONFIG_DIR` is set, the skill is installed under that directory instead of `~/.claude`.
-
-### Windows PowerShell
-
-Run:
+On Windows PowerShell:
 
 ```powershell
+git clone https://github.com/codemeall/orchestrator-ai.git
+cd orchestrator-ai
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The installer tries to create a symbolic link. If Windows does not permit symbolic links, it copies the skill directory instead.
+The installer creates a symbolic link at `~/.claude/skills/orchestrate-agents` (or under `CLAUDE_CONFIG_DIR` when set). On Windows, if symbolic links are not permitted, it copies the skill directory instead.
 
 ### Manual installation
 
-Copy or link the `orchestrate-agents` directory into your personal Claude Code skills directory:
+Copy or link `skills/orchestrate-agents` into your personal Claude Code skills directory:
 
 ```text
 ~/.claude/skills/orchestrate-agents/
@@ -114,7 +115,7 @@ On macOS or Linux:
 
 ```sh
 mkdir -p "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills"
-ln -s "$PWD/orchestrate-agents" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/orchestrate-agents"
+ln -s "$PWD/skills/orchestrate-agents" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/orchestrate-agents"
 ```
 
 ## Verify installation
@@ -227,11 +228,11 @@ The parent Claude session:
 7. Uses cross-model review for high-risk work when the selected profile allows it.
 8. Returns one integrated result rather than copying full worker transcripts.
 
-The detailed aliases, profile defaults, and fallback order live in [`orchestrate-agents/references/routing-policy.md`](orchestrate-agents/references/routing-policy.md).
+The detailed aliases, profile defaults, and fallback order live in [`skills/orchestrate-agents/references/routing-policy.md`](skills/orchestrate-agents/references/routing-policy.md).
 
 ## Customization
 
-Edit [`orchestrate-agents/references/routing-policy.md`](orchestrate-agents/references/routing-policy.md) to change:
+Edit [`skills/orchestrate-agents/references/routing-policy.md`](skills/orchestrate-agents/references/routing-policy.md) to change:
 
 - model aliases;
 - default reasoning effort where supported;
@@ -239,11 +240,23 @@ Edit [`orchestrate-agents/references/routing-policy.md`](orchestrate-agents/refe
 - fallback order;
 - task-to-model routing preferences.
 
-Keep [`orchestrate-agents/SKILL.md`](orchestrate-agents/SKILL.md) focused on orchestration behavior. Put model-catalog changes in the routing policy so the main skill remains stable.
+Keep [`skills/orchestrate-agents/SKILL.md`](skills/orchestrate-agents/SKILL.md) focused on orchestration behavior. Put model-catalog changes in the routing policy so the main skill remains stable.
 
 ## Updating
 
-For symbolic-link installations, update the cloned repository:
+For Skills CLI installs:
+
+```sh
+npx skills update
+```
+
+Or with GitHub CLI:
+
+```sh
+gh skill update orchestrate-agents --agent claude-code --scope user
+```
+
+For symbolic-link installations from a local clone, update the cloned repository:
 
 ```sh
 git pull
@@ -310,12 +323,13 @@ The installer refuses to overwrite an existing skill. Inspect the current path, 
 ├── LICENSE
 ├── install.sh
 ├── install.ps1
-└── orchestrate-agents/
-    ├── SKILL.md
-    ├── agents/
-    │   └── openai.yaml
-    └── references/
-        └── routing-policy.md
+└── skills/
+    └── orchestrate-agents/
+        ├── SKILL.md
+        ├── agents/
+        │   └── openai.yaml
+        └── references/
+            └── routing-policy.md
 ```
 
 ## License

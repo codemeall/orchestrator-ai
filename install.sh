@@ -3,7 +3,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-SOURCE="$SCRIPT_DIR/orchestrate-agents"
+SOURCE="$SCRIPT_DIR/skills/orchestrate-agents"
 CONFIG_DIR=${CLAUDE_CONFIG_DIR:-"$HOME/.claude"}
 SKILLS_DIR="$CONFIG_DIR/skills"
 TARGET="$SKILLS_DIR/orchestrate-agents"
