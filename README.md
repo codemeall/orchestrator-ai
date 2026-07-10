@@ -1,6 +1,6 @@
 # Orchestrate Agents
 
-A cost-aware Claude Code skill that delegates work across native Claude subagents and OpenAI Codex workers.
+A cost-aware Claude Code skill that delegates work across native Claude subagents, OpenAI Codex workers, and xAI Grok Build workers.
 
 Use Claude Fable as a thin coordinator while lower-cost agents handle repository discovery, implementation, debugging, testing, and targeted review. The skill supports named agents, three cost profiles, bounded concurrency, model fallbacks, and a single-writer rule that protects the active checkout.
 
@@ -8,7 +8,8 @@ Use Claude Fable as a thin coordinator while lower-cost agents handle repository
 
 - Routes Claude-native work to Sonnet 5 or Haiku 4.5.
 - Routes coding work to GPT-5.6 Luna, Terra, or Sol through [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc).
-- Lets you select agents and reasoning effort per invocation.
+- Routes implementation proposals, reviews, and adversarial second opinions through [`codemeall/grok-plugin-cc`](https://github.com/codemeall/grok-plugin-cc).
+- Lets you select agents and model IDs, plus Codex reasoning effort, per invocation.
 - Keeps Fable focused on decomposition, coordination, and final synthesis.
 - Runs independent read-only tasks in parallel while allowing only one writer in the active checkout.
 - Requires compact, verifiable handoffs from every worker.
@@ -17,9 +18,13 @@ Use Claude Fable as a thin coordinator while lower-cost agents handle repository
 ## Requirements
 
 1. [Claude Code](https://code.claude.com/docs/en/overview), version 2.1.203 or newer recommended.
-2. The [Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc).
-3. A working Codex login using a ChatGPT account or OpenAI API key.
-4. Access to the models you select. GPT-5.6 availability can vary by account and rollout stage.
+2. Install the provider plugins you intend to use:
+   - [Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc) for Codex workers.
+   - [Grok plugin for Claude Code](https://github.com/codemeall/grok-plugin-cc), version 0.2.0 or newer, for Grok workers.
+3. Authenticate each selected provider. Native Claude-only routing does not require either external plugin.
+4. Access to the models you select. Preview-model availability can vary by account and rollout stage.
+
+### Set up Codex
 
 Install and check the Codex integration from inside Claude Code:
 
@@ -29,6 +34,33 @@ Install and check the Codex integration from inside Claude Code:
 /reload-plugins
 /codex:setup
 ```
+
+### Set up Grok
+
+Install and authenticate the official Grok Build CLI:
+
+```sh
+curl -fsSL https://x.ai/cli/install.sh | bash
+grok login
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://x.ai/cli/install.ps1 | iex
+grok login
+```
+
+Then install and verify the Grok plugin from inside Claude Code:
+
+```text
+/plugin marketplace add codemeall/grok-plugin-cc
+/plugin install grok@grok-plugin-cc
+/reload-plugins
+/grok:setup
+```
+
+For non-interactive environments, set `XAI_API_KEY`. If another executable named `grok` is earlier on `PATH`, set `GROK_CLI` to the official Grok Build binary, commonly `~/.grok/bin/grok`.
 
 ## Install
 
@@ -124,6 +156,7 @@ The default profile is `balanced`.
 | `codex-luna` | Codex | `gpt-5.6-luna`, medium effort | Focused fixes, tests, mechanical edits |
 | `codex-terra` | Codex | `gpt-5.6-terra`, medium effort | General coding, debugging, implementation |
 | `codex-sol` | Codex | `gpt-5.6-sol`, medium effort | Migrations, architecture, security-sensitive coding |
+| `grok` | Grok Build | Configured Grok default | Adversarial review, second opinions, implementation proposals |
 | `haiku` | Claude | `claude-haiku-4-5` | Search, inventory, summaries, simple read-only checks |
 | `sonnet` | Claude | `claude-sonnet-5` | Planning, analysis, documentation, implementation, or review |
 
@@ -131,6 +164,7 @@ You may also provide full model specifications:
 
 ```text
 codex:<model-id>@<effort>
+grok:<model-id>
 claude:<model-id>
 ```
 
@@ -166,6 +200,20 @@ Ask before substituting an unavailable model:
 /orchestrate-agents quality agents=codex:gpt-5.6-sol@high fallback=ask -- audit the authorization layer
 ```
 
+Use Grok as an adversarial reviewer:
+
+```text
+/orchestrate-agents balanced agents=codex-terra,grok -- implement the retry fix and challenge its reliability assumptions
+```
+
+Select an exact Grok model:
+
+```text
+/orchestrate-agents quality agents=sonnet,grok:grok-4.5 -- design the migration and independently pressure-test the plan
+```
+
+Grok rescue is proposal-only: the plugin may return a unified diff, but the coordinator must inspect and deliberately apply it before reporting files as changed.
+
 ## How routing works
 
 The parent Claude session:
@@ -186,7 +234,7 @@ The detailed aliases, profile defaults, and fallback order live in [`orchestrate
 Edit [`orchestrate-agents/references/routing-policy.md`](orchestrate-agents/references/routing-policy.md) to change:
 
 - model aliases;
-- default reasoning effort;
+- default reasoning effort where supported;
 - profile limits;
 - fallback order;
 - task-to-model routing preferences.
@@ -220,7 +268,7 @@ $ConfigDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-
 Remove-Item -Recurse -Force (Join-Path $ConfigDir 'skills\orchestrate-agents')
 ```
 
-Uninstalling removes the personal skill link or copy. It does not remove the cloned repository, Claude Code, Codex CLI, or `codex-plugin-cc`.
+Uninstalling removes the personal skill link or copy. It does not remove the cloned repository, Claude Code, provider CLIs, `codex-plugin-cc`, or `grok-plugin-cc`.
 
 ## Troubleshooting
 
@@ -237,9 +285,16 @@ Uninstalling removes the personal skill link or copy. It does not remove the clo
 - Confirm the `codex@openai-codex` plugin is enabled with `/plugin`.
 - Run `codex login` in a terminal if Codex is not authenticated.
 
+### Grok delegation is unavailable
+
+- Run `/grok:setup` in Claude Code.
+- Confirm `grok@grok-plugin-cc` is enabled with `/plugin`.
+- Run `grok login`, or set `XAI_API_KEY` for non-interactive use.
+- If `PATH` resolves `grok` to a different tool, set `GROK_CLI` to the official Grok Build executable.
+
 ### A requested model is unavailable
 
-- Use an alias such as `codex-terra` instead of a preview model ID.
+- Use an alias such as `codex-terra` or `grok` instead of a preview model ID.
 - Choose `fallback=auto` to permit a reported fallback.
 - Update the aliases in `routing-policy.md` to models available to your account.
 

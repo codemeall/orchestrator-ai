@@ -1,6 +1,6 @@
 ---
 name: orchestrate-agents
-description: Coordinate cost-aware multi-agent work across native Claude subagents and the codex-plugin-cc Codex bridge. Use when the user explicitly invokes /orchestrate-agents to delegate a coding, research, debugging, review, or implementation task to named Claude or Codex workers while keeping the parent model focused on decomposition and synthesis.
+description: Coordinate cost-aware multi-agent work across native Claude subagents, the codex-plugin-cc Codex bridge, and the grok-plugin-cc Grok Build bridge. Use when the user explicitly invokes /orchestrate-agents to delegate coding, research, debugging, review, or implementation tasks to named Claude, Codex, or Grok workers while keeping the parent model focused on decomposition and synthesis.
 argument-hint: '[economy|balanced|quality] [agents=<list>] [fallback=auto|ask|none] -- <task>'
 disable-model-invocation: true
 ---
@@ -23,6 +23,7 @@ Examples:
 /orchestrate-agents economy -- investigate why the tests are flaky
 /orchestrate-agents balanced agents=codex-terra,sonnet -- implement and review refresh-token rotation
 /orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- plan the database migration
+/orchestrate-agents quality agents=codex-terra,grok -- implement the fix and challenge its failure modes
 ```
 
 ## Workflow
@@ -57,6 +58,20 @@ If the host cannot invoke the rescue skill directly, invoke the `codex:codex-res
 Use explicit review mode for read-only work: instruct Codex not to edit files or apply fixes. Use fresh sessions for independent tasks and resume only when a subtask intentionally continues prior Codex work.
 
 Never claim a Codex task succeeded from dispatch alone. Retrieve its completed result and inspect verification evidence.
+
+## Dispatch Grok workers
+
+Require the installed [`codemeall/grok-plugin-cc`](https://github.com/codemeall/grok-plugin-cc) integration and a working Grok Build CLI login.
+
+Prefer the plugin's `grok:rescue` workflow for focused investigation or implementation proposals. Pass `--model <id>` only when the user supplies a full Grok model specification. The plugin does not expose a reasoning-effort flag.
+
+Use `grok:review` for normal read-only review and `grok:adversarial-review` for architecture, reliability, security, scale, and assumption challenges. Use background execution for independent long-running work and retain the returned job identifier for `grok:status` and `grok:result`.
+
+The Grok commands are user-only skills. When the host cannot invoke them programmatically, invoke the `grok:grok-rescue` Agent and explicitly request the needed rescue, review, or adversarial-review mode, exact model if supplied, repository scope, and result contract.
+
+Treat Grok rescue output as proposal-only. Inspect any unified diff before applying it, and never report a proposed patch as an applied change. Applying an accepted Grok patch consumes the coordinator's writer slot or must be handed to the designated writer.
+
+Never claim a Grok job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
 
 ## Control cost and concurrency
 
@@ -99,7 +114,7 @@ Reject unsupported success claims. If a worker edited files but did not verify t
 Return one integrated result containing:
 
 - outcome;
-- agents actually used, including models and efforts;
+- agents actually used, including models and efforts where supported;
 - changed files and verification;
 - fallbacks or failed subtasks;
 - remaining risks or required user decisions.
