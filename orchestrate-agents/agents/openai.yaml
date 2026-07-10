@@ -1,0 +1,6 @@
+interface:
+  display_name: "Orchestrate Agents"
+  short_description: "Route work across Claude and Codex agents"
+  default_prompt: "Use $orchestrate-agents to delegate this task across cost-effective Claude and Codex workers."
+policy:
+  allow_implicit_invocation: false
