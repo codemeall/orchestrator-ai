@@ -4,3 +4,5 @@ interface:
   default_prompt: "Use $orchestrate-agents to delegate this task across cost-effective Claude, Codex, and Grok workers."
 policy:
   allow_implicit_invocation: false
+metadata:
+  version: "1.0.0"

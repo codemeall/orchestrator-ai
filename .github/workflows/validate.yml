@@ -1,0 +1,53 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Validate skill frontmatter
+        run: node scripts/validate-skill.mjs
+
+      - name: ShellCheck installers
+        run: shellcheck install.sh tests/smoke-install.sh
+
+      - name: Consistency tests
+        run: npm test
+
+      - name: Unix installer smoke test
+        run: ./tests/smoke-install.sh
+
+      - name: Markdown link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            --exclude 'https://github.com/codemeall/orchestrator-ai/actions/workflows/validate.yml/badge.svg'
+            --exclude 'https://github.com/codemeall/orchestrator-ai/security/advisories/new'
+            README.md CHANGELOG.md SECURITY.md CONTRIBUTING.md docs skills
+          fail: true
+
+  windows-install:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Windows installer smoke test
+        shell: pwsh
+        run: ./tests/smoke-install.ps1

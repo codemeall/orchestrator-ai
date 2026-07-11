@@ -1,0 +1,35 @@
+name: Install failure
+description: Skill install or discovery is broken
+title: "[install] "
+labels: ["install"]
+body:
+  - type: dropdown
+    id: method
+    attributes:
+      label: Install method
+      options:
+        - Skills CLI
+        - GitHub CLI
+        - Local clone installer
+        - Manual link/copy
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Agent host
+      description: For example Claude Code, Cursor, Codex
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true

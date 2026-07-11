@@ -1,0 +1,14 @@
+{
+  "name": "orchestrator-ai",
+  "private": true,
+  "type": "module",
+  "description": "Cost-aware multi-agent orchestration skill for Claude Code, Codex, and Grok",
+  "scripts": {
+    "test": "node scripts/validate-skill.mjs && node tests/check-consistency.mjs",
+    "test:install": "./tests/smoke-install.sh",
+    "validate:skill": "node scripts/validate-skill.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

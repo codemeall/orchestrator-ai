@@ -19,6 +19,20 @@ if (-not (Test-Path -LiteralPath $SkillFile -PathType Leaf)) {
 New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
 
 if (Test-Path -LiteralPath $Target) {
+    $existing = Get-Item -LiteralPath $Target -Force
+    if ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        $currentTarget = $existing.Target
+        if ($currentTarget -is [array]) {
+            $currentTarget = $currentTarget[0]
+        }
+        $resolvedCurrent = [System.IO.Path]::GetFullPath($currentTarget)
+        $resolvedSource = [System.IO.Path]::GetFullPath($Source)
+        if ($resolvedCurrent -eq $resolvedSource) {
+            Write-Host "Orchestrate Agents is already installed at $Target"
+            exit 0
+        }
+    }
+
     throw "$Target already exists and will not be overwritten. Remove or rename it deliberately before installing."
 }
 

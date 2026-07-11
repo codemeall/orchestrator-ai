@@ -6,10 +6,10 @@ Use aliases so routine invocations remain stable when provider model catalogs ch
 
 - Alias: `codex-terra`, `codex-sol`, `codex-luna`, `grok`, `sonnet`, or `haiku`.
 - Codex full specification: `codex:<model-id>@<effort>`.
-- Grok full specification: `grok:<model-id>`.
+- Grok full specification: `grok:<model-id>` or `grok:<model-id>@<effort>`.
 - Claude full specification: `claude:<model-id>`.
-- Supported Codex efforts depend on the installed Codex version and model. Pass the requested value unchanged and handle provider rejection through the fallback policy.
-- Grok uses the Grok Build CLI default when no model ID is supplied. Do not invent or pass an effort value to Grok.
+- Supported Codex and Grok efforts depend on the installed plugin and CLI. Pass the requested value unchanged and handle provider rejection through the fallback policy.
+- When no Grok model ID is supplied, use the Grok Build CLI configured default.
 
 ## Default aliases
 
@@ -18,11 +18,24 @@ Use aliases so routine invocations remain stable when provider model catalogs ch
 | `codex-luna` | `codex-plugin-cc` | `gpt-5.6-luna` | `medium` | lowest | focused fixes, tests, mechanical edits |
 | `codex-terra` | `codex-plugin-cc` | `gpt-5.6-terra` | `medium` | medium | default coding, debugging, implementation |
 | `codex-sol` | `codex-plugin-cc` | `gpt-5.6-sol` | `medium` | high | difficult migrations, architecture, security-sensitive coding |
-| `grok` | `grok-plugin-cc` | Grok Build configured default | not supported | provider-dependent | adversarial review, second opinions, implementation proposals |
-| `haiku` | native Claude subagent | `claude-haiku-4-5` | inherited | lowest Claude | search, inventory, summaries, simple read-only checks |
-| `sonnet` | native Claude subagent | `claude-sonnet-5` | inherited | medium Claude | planning, documentation, analysis, targeted implementation or review |
+| `grok` | `grok-plugin-cc` | Grok Build configured default | medium when effort is requested | provider-dependent | adversarial review, second opinions, write rescue, readonly proposals |
+| `haiku` | native Claude subagent | `claude-haiku-4-5` | inherited from parent session | lowest Claude | search, inventory, summaries, simple read-only checks |
+| `sonnet` | native Claude subagent | `claude-sonnet-5` | inherited from parent session | medium Claude | planning, documentation, analysis, targeted implementation or review |
 
-Keep Fable as the parent coordinator. Do not select it as a routine worker unless the user explicitly names it.
+Keep the parent session model as coordinator. Do not select the parent coordinator as a routine worker unless the user explicitly names that model.
+
+## Classification to profile mapping
+
+| Classification | Typical profile default | Default worker |
+|---|---|---|
+| Trivial read-only lookup | `economy` | `haiku` |
+| Focused code change | `economy` | `codex-luna` |
+| Normal implementation or debugging | `balanced` | `codex-terra` |
+| Complex or high-risk implementation | `quality` | `codex-sol` |
+| Targeted review or analysis | `balanced` | `sonnet` |
+| Adversarial or cross-provider review | `quality` | `grok` |
+
+Honor an explicit user profile or `agents=` list over this table. Profile caps remain hard limits.
 
 ## Profile defaults
 
@@ -33,6 +46,7 @@ Keep Fable as the parent coordinator. Do not select it as a routine worker unles
 - Normal code change that needs stronger reasoning: `codex-terra`.
 - Use `grok` only when explicitly requested; prefer it for a focused second opinion rather than routine lookup.
 - Maximum workers: one.
+- High-risk work under economy cannot receive independent cross-model review; warn and recommend `balanced` or `quality`.
 
 ### Balanced
 
@@ -54,21 +68,22 @@ Keep Fable as the parent coordinator. Do not select it as a routine worker unles
 
 - Prefer native Claude workers for prose, requirements analysis, repository discovery, and tasks that benefit from the parent environment's native tools.
 - Prefer Codex workers for implementation, debugging, test repair, refactoring, and command-heavy repository work.
-- Prefer Grok for proposal-only implementation alternatives, adversarial review, and a third-provider opinion on assumptions or failure modes.
-- Prefer a different model family for high-risk review: review Codex-written changes with Claude or Grok, Claude-written changes with Codex or Grok, and Grok proposals with Claude or Codex.
+- Prefer Grok for write rescue when requested, readonly proposals, adversarial review, and a third-provider opinion on assumptions or failure modes.
+- Prefer a different model family for high-risk review: review Codex-written changes with Claude or Grok, Claude-written changes with Codex or Grok, and Grok-written changes with Claude or Codex.
 - Prefer the cheapest worker that can complete the task with acceptable risk.
 - Escalate from Luna to Terra to Sol only when task complexity or evidence justifies it.
 - Avoid assigning the same whole task to multiple agents. Give each worker a distinct deliverable.
+- Route Codex and Grok read-only work through review commands, not write-capable rescue.
 
 ## Fallback order
 
 Use fallbacks only when allowed by the invocation policy.
 
-- `codex-sol` -> `codex-terra` -> installed Codex default.
-- `codex-terra` -> `codex-luna` -> installed Codex default.
-- `codex-luna` -> installed Codex default.
+- `codex-sol` -> `codex-terra` -> `codex-luna`.
+- `codex-terra` -> `codex-luna` for mechanical or low-risk edits; for implementation that needed Terra reasoning, prefer `ask` or an alternate provider before downgrading.
+- `codex-luna` -> installed Codex default reported by `/codex:setup`, otherwise stop under `fallback=none`.
 - `grok` -> `sonnet` for read-only review or `codex-terra` for implementation work.
-- `sonnet` -> `haiku` for read-only low-risk work; otherwise require approval.
+- `sonnet` -> `haiku` for read-only low-risk work only; otherwise require approval.
 - `haiku` -> `sonnet`.
 
 Never describe a provider fallback as the originally requested model. Report the worker actually used.
@@ -77,6 +92,7 @@ Never describe a provider fallback as the originally requested model. Report the
 
 - Parallelize independent read-only investigation and review.
 - Give the active checkout to one writer at a time.
-- Treat Grok rescue as proposal-only. Do not count it as a writer until the coordinator or a designated worker applies its patch.
+- Write-capable Grok rescue (`grok:rescue` without `--readonly`) consumes the writer slot.
+- Readonly Grok rescue, Grok review, and Grok adversarial review do not consume the writer slot.
 - If isolated worktrees are available, state ownership and integration order before starting multiple writers.
 - Do not let a reviewer modify the implementation it is reviewing unless the coordinator explicitly changes its role after recording the findings.

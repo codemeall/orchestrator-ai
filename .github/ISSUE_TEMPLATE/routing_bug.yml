@@ -1,0 +1,31 @@
+name: Routing bug
+description: Worker selection, fallback, or writer ownership is wrong
+title: "[routing] "
+labels: ["routing"]
+body:
+  - type: input
+    id: invocation
+    attributes:
+      label: Exact invocation
+      description: Full `/orchestrate-agents ...` command
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected routing
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual routing
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Worker handoffs, fallback notices, or logs
+    validations:
+      required: false

@@ -3,19 +3,25 @@ name: orchestrate-agents
 description: Coordinate cost-aware multi-agent work across native Claude subagents, the codex-plugin-cc Codex bridge, and the grok-plugin-cc Grok Build bridge. Use when the user explicitly invokes /orchestrate-agents to delegate coding, research, debugging, review, or implementation tasks to named Claude, Codex, or Grok workers while keeping the parent model focused on decomposition and synthesis.
 argument-hint: '[economy|balanced|quality] [agents=<list>] [fallback=auto|ask|none] -- <task>'
 disable-model-invocation: true
+license: MIT
+compatibility: Requires Claude Code 2.1.203+. Codex workers need openai/codex-plugin-cc. Grok workers need codemeall/grok-plugin-cc 0.2.0+ and a working Grok Build CLI. Native Claude-only routing needs no external plugins.
+metadata:
+  author: codemeall
+  version: "1.0.0"
 ---
 
 # Orchestrate Agents
 
-Treat the parent model as coordinator. Delegate substantive work when delegation will save parent-model effort or improve quality. Keep trivial work local when delegation overhead would be greater than completing it directly.
+Treat the parent session model as coordinator. Delegate substantive work when delegation will save parent-model effort or improve quality. Keep trivial work local when delegation overhead would be greater than completing it directly, unless the user explicitly invoked `/orchestrate-agents economy` and expects a Haiku worker.
 
 Parse the invocation from `$ARGUMENTS`:
 
 - Accept `economy`, `balanced`, or `quality` as the first bare profile name, or accept `profile=<name>`.
 - Accept `agents=<comma-separated aliases or full specifications>`.
-- Accept `fallback=auto|ask|none`; default to `auto` for profile-selected agents and `ask` for explicitly named full model IDs.
+- Accept `fallback=auto|ask|none`. Default to `auto` for profile-selected agents and aliases; default to `ask` for full model specifications (`provider:model` or `provider:model@effort`).
 - Treat text after `--` as the task. If `--` is absent, treat unrecognized text as the task.
 - Default to `balanced` when no profile is supplied.
+- Profile caps are hard limits. If `agents=` lists more workers than the profile allows, keep the first N in list order, announce the truncation, and do not spawn the extras.
 
 Examples:
 
@@ -29,21 +35,23 @@ Examples:
 ## Workflow
 
 1. Restate the requested outcome in one sentence and identify constraints that agents must preserve.
-2. Classify the task as trivial, focused, complex, or high risk.
-3. Read [references/routing-policy.md](references/routing-policy.md) before selecting workers or interpreting agent specifications.
+2. Classify the task as trivial, focused, complex, or high risk. Map classification to profile defaults using [references/routing-policy.md](references/routing-policy.md).
+3. Read [references/routing-policy.md](references/routing-policy.md) before selecting workers or interpreting agent specifications, unless every worker is already a full specification (for example `agents=claude:claude-haiku-4-5` or `agents=codex:gpt-5.6-terra@medium`). Aliases such as `haiku` or `codex-terra` still require the policy read. When skipping the full read for pinned full specs, still apply fallback and concurrency rules if a fallback becomes necessary.
 4. Create the smallest set of independent subtasks with explicit deliverables. Do not delegate vague duplicates of the whole request.
 5. State a compact routing plan before spawning workers: subtask, worker, read/write mode, and dependency.
-6. Dispatch independent read-only work in parallel. Dispatch dependent work sequentially.
-7. Enforce the single-writer rule. Only one worker may edit the active checkout at a time. Serialize writers unless each has an isolated worktree and an explicit integration plan.
+6. Dispatch independent read-only work in parallel. Dispatch dependent work sequentially. Do not perform broad repository inventory the worker will repeat. The coordinator may read only the minimum files needed to scope the subtask.
+7. Enforce the single-writer rule. Only one worker may edit the active checkout at a time. Serialize writers unless each has an isolated worktree and an explicit integration plan. Write-capable Grok rescue consumes the writer slot.
 8. Wait for required results. Do not produce a final answer while a required worker is still running.
-9. Validate outputs proportionally to risk. Prefer a different model family for an independent high-risk review.
+9. Validate outputs proportionally to risk. Prefer a different model family for an independent high-risk review. Under `economy`, warn that independent cross-model review is unavailable and recommend `balanced` or `quality` when the task is high risk.
 10. Synthesize results without repeating each worker's full narrative. Report fallbacks, failures, changed files, verification, and remaining risks.
 
 ## Dispatch Claude workers
 
-Use the native Agent/subagent mechanism. Set the per-invocation model to the resolved Claude model ID. Give each worker only the context needed for its subtask, plus repository constraints and the result contract below.
+Use the native Agent/subagent mechanism. Resolve each worker to a Claude model, then map it at dispatch time to an Agent-tool alias: `claude-haiku-4-5` → `haiku` or `claude-sonnet-5` → `sonnet`; never pass a full model ID to the native Agent tool. For a user-supplied `claude:<model-id>` full specification, map the ID to the closest accepted alias and report when the mapping is not exact. Give each worker only the context needed for its subtask, plus repository constraints and the result contract below.
 
 Use read-only tools for research and review tasks. For write tasks, identify the permitted files or subsystem and require tests or verification.
+
+For read-only lookups, keep the dispatch prompt lean: state the question, scope, and result contract. Always forward any user-supplied procedures, acceptance criteria, and required checks verbatim. Do not invent step-by-step investigation procedures the worker can derive on its own.
 
 Do not allow workers to create further workers unless the user explicitly requests nested delegation.
 
@@ -51,11 +59,11 @@ Do not allow workers to create further workers unless the user explicitly reques
 
 Require the installed `codex-plugin-cc` integration.
 
-Prefer the plugin's `codex:rescue` workflow with the resolved `--model` and `--effort` values. Use background execution for independent long-running work and retain the returned task or session identifier.
+For write or implementation work, prefer the plugin's `codex:rescue` workflow with the resolved `--model` and `--effort` values. If the host cannot invoke the rescue command directly, invoke the `codex:codex-rescue` Agent and include the exact model, effort, task, write scope, and result contract in its prompt.
 
-If the host cannot invoke the rescue skill directly, invoke the `codex:codex-rescue` Agent and include the exact model, effort, task, write scope, and result contract in its prompt.
+For read-only review, use `codex:review` or `codex:adversarial-review`. Do not route read-only work through write-capable rescue with soft "do not edit" instructions.
 
-Use explicit review mode for read-only work: instruct Codex not to edit files or apply fixes. Use fresh sessions for independent tasks and resume only when a subtask intentionally continues prior Codex work.
+Use fresh sessions for independent tasks and resume only when a subtask intentionally continues prior Codex work. Use background execution for independent long-running work and retain the returned task or session identifier.
 
 Never claim a Codex task succeeded from dispatch alone. Retrieve its completed result and inspect verification evidence.
 
@@ -63,19 +71,34 @@ Never claim a Codex task succeeded from dispatch alone. Retrieve its completed r
 
 Require the installed [`codemeall/grok-plugin-cc`](https://github.com/codemeall/grok-plugin-cc) integration and a working Grok Build CLI login.
 
-Prefer the plugin's `grok:rescue` workflow for focused investigation or implementation proposals. Pass `--model <id>` only when the user supplies a full Grok model specification. The plugin does not expose a reasoning-effort flag.
+Grok slash commands are user-only. Prefer Agent-based dispatch that requests the needed mode explicitly:
 
-Use `grok:review` for normal read-only review and `grok:adversarial-review` for architecture, reliability, security, scale, and assumption challenges. Use background execution for independent long-running work and retain the returned job identifier for `grok:status` and `grok:result`.
+- Write or apply-fix work: `grok:rescue` (write-capable by default). This consumes the writer slot.
+- Proposal-only investigation: `grok:rescue --readonly`, or ask the Agent for readonly rescue semantics.
+- Normal read-only review: `grok:review`.
+- Architecture, reliability, security, scale, and assumption challenges: `grok:adversarial-review`.
 
-The Grok commands are user-only skills. When the host cannot invoke them programmatically, invoke the `grok:grok-rescue` Agent and explicitly request the needed rescue, review, or adversarial-review mode, exact model if supplied, repository scope, and result contract.
+Pass `--model <id>` and `--effort <level>` when the user supplies a full Grok specification `grok:<model-id>` or `grok:<model-id>@<effort>`. Supported efforts depend on the installed Grok plugin and CLI; pass the requested value unchanged and handle rejection through the fallback policy.
 
-Treat Grok rescue output as proposal-only. Inspect any unified diff before applying it, and never report a proposed patch as an applied change. Applying an accepted Grok patch consumes the coordinator's writer slot or must be handed to the designated writer.
+Use background execution for independent long-running work and retain the returned job identifier for `grok:status` and `grok:result`.
+
+Never treat write-capable Grok rescue as proposal-only. Inspect any applied changes or proposed patch before reporting files as changed. A `--readonly` proposal is not an applied change until the coordinator or designated writer applies it.
 
 Never claim a Grok job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
 
+## Background jobs
+
+For Codex or Grok background work:
+
+1. Retain the task or job identifier at dispatch.
+2. Poll status until completion, failure, or timeout.
+3. On completion, fetch the result and inspect verification evidence before synthesizing.
+4. On timeout or stuck status, cancel once, then apply one retry or the configured fallback.
+5. Do not answer the user while a required background job is still running.
+
 ## Control cost and concurrency
 
-- `economy`: use at most one worker; choose the cheapest capable worker; skip independent review unless the task is high risk.
+- `economy`: use at most one worker; choose the cheapest capable worker; skip independent review unless the task is high risk, in which case warn and recommend a higher profile.
 - `balanced`: use at most two workers; normally one implementer and one targeted reviewer or investigator.
 - `quality`: use at most three workers; permit a stronger implementer and an independent cross-model review.
 - Count workers, not subtasks. Reuse a worker for closely related sequential subtasks when its context remains useful.
@@ -91,27 +114,51 @@ Never silently replace an explicitly requested model.
 - With `fallback=ask`, pause before substituting an explicitly requested worker.
 - With `fallback=none`, stop the affected subtask and report the blocker.
 - Do not substitute a read-only worker with a writer or broaden permissions during fallback.
+- `sonnet` may fall back to `haiku` automatically only for read-only low-risk work. For write, planning, or high-risk work, treat that substitution as `fallback=ask` even when the invocation default is `auto`.
 
 ## Require this worker result contract
 
-Append this contract to every delegated prompt:
+Choose the contract by task type and append it to every delegated prompt.
+
+For trivial read-only economy lookups, use the compact contract:
+
+```text
+Return only a compact handoff:
+STATUS: completed | blocked | failed
+SUMMARY: at most 80 words
+EVIDENCE: file:line references
+VERIFICATION: checks run and outcomes, or omit if none beyond the cited reads
+```
+
+For focused read-only investigations, use the full contract without `CHANGED`. For write tasks, multi-worker runs, complex investigations, and high-risk work, use the full contract:
 
 ```text
 Return only a compact handoff:
 STATUS: completed | blocked | failed
 SUMMARY: at most 150 words
-CHANGED: file paths, or none
+CHANGED: file paths (omit if none)
 VERIFICATION: commands/checks run and outcomes
 EVIDENCE: relevant file:line references for read-only findings
-RISKS: unresolved risks, or none
-NEXT: one recommended next action, or none
+RISKS: unresolved risks (omit if none)
+NEXT: one recommended next action only if directly implied by findings; otherwise omit
 ```
+
+Omit empty sections. Do not emit filler such as `CHANGED: none` or `RISKS: none`.
 
 Reject unsupported success claims. If a worker edited files but did not verify them, run appropriate verification in the coordinator or delegate a narrowly scoped validation task.
 
 ## Finish
 
-Return one integrated result containing:
+Return one integrated result.
+
+For a single-worker read-only result, pass through the worker's SUMMARY and EVIDENCE with at most 1-2 sentences of added judgment. Do not rewrite the findings. Still report:
+
+- the worker actually used, including model and effort where supported;
+- whether EVIDENCE was spot-checked (`verified` or `not verified`);
+- any fallback or failure;
+- remaining risks only if present.
+
+For multi-worker or write tasks, return one integrated result containing:
 
 - outcome;
 - agents actually used, including models and efforts where supported;

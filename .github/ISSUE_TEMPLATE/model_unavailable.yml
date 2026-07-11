@@ -1,0 +1,36 @@
+name: Model unavailable
+description: Alias or full model specification failed to resolve
+title: "[model] "
+labels: ["models"]
+body:
+  - type: input
+    id: alias
+    attributes:
+      label: Alias or full specification
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider
+      description: Claude, Codex, or Grok
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup output
+      description: Relevant `/codex:setup` or `/grok:setup` details with secrets removed
+    validations:
+      required: false
+  - type: dropdown
+    id: fallback
+    attributes:
+      label: Fallback mode used
+      options:
+        - auto
+        - ask
+        - none
+        - unset
+    validations:
+      required: true
