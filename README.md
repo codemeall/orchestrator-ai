@@ -174,9 +174,19 @@ General syntax:
 /orchestrate-agents [profile|profile=<name>] [agents=<list>] [fallback=auto|ask|none] -- <task>
 ```
 
-The default profile is `balanced`.
+Everything except the task is optional. Start at Level 1 and add control only when you need it — each level is a superset of the one before.
 
-### Profiles and cost expectations
+### Level 1 — Just delegate
+
+Type the command and describe the task after `--`. The skill defaults to the `balanced` profile and picks suitable workers for you:
+
+```text
+/orchestrate-agents -- fix the failing login test and verify the fix
+```
+
+### Level 2 — Control cost with a profile
+
+Add one word to set how much the run may spend:
 
 | Profile | Maximum workers | Typical cost | Intended use |
 |---|---:|---|---|
@@ -184,9 +194,16 @@ The default profile is `balanced`.
 | `balanced` | 2 | Medium | Normal implementation plus targeted investigation or review |
 | `quality` | 3 | Highest | Complex work with stronger reasoning and cross-model validation |
 
-`agents=` defines intent. Profile caps are hard limits: excess workers are truncated in list order and reported. High-risk work under `economy` cannot receive independent cross-model review; the coordinator should warn and recommend `balanced` or `quality`.
+```text
+/orchestrate-agents economy -- find the cause of the failing integration test
+/orchestrate-agents quality -- redesign the session handling and pressure-test the design
+```
 
-### Built-in agent aliases
+High-risk work under `economy` cannot receive independent cross-model review; the coordinator warns and recommends `balanced` or `quality`.
+
+### Level 3 — Pick your workers
+
+Add `agents=` with one or more built-in aliases:
 
 | Alias | Provider | Default model | Typical role |
 |---|---|---|---|
@@ -197,7 +214,16 @@ The default profile is `balanced`.
 | `haiku` | Claude | `claude-haiku-4-5` | Search, inventory, summaries, simple read-only checks |
 | `sonnet` | Claude | `claude-sonnet-5` | Planning, analysis, documentation, implementation, or review |
 
-You may also provide full model specifications:
+```text
+/orchestrate-agents balanced agents=codex-terra,sonnet -- implement refresh-token rotation and verify the security boundaries
+/orchestrate-agents balanced agents=codex-terra,grok -- implement the retry fix and challenge its reliability assumptions
+```
+
+`agents=` defines intent. Profile caps are hard limits: excess workers are truncated in list order and reported.
+
+### Level 4 — Pin exact models, effort, and fallback behavior
+
+For full control, replace aliases with full model specifications:
 
 ```text
 codex:<model-id>@<effort>
@@ -206,7 +232,24 @@ grok:<model-id>@<effort>
 claude:<model-id>
 ```
 
+Control substitution when a model is unavailable with `fallback=`:
+
+- `auto` — default for profiles and aliases: substitute the nearest compatible model and report it.
+- `ask` — default for full model specifications: pause and ask before substituting.
+- `none` — stop the affected subtask and report the blocker.
+
+```text
+/orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- plan and execute the database migration
+/orchestrate-agents quality agents=sonnet,grok:grok-4.5@high -- design the migration and independently pressure-test the plan
+/orchestrate-agents balanced agents=codex-terra fallback=none -- fix the concurrency regression
+/orchestrate-agents quality agents=codex:gpt-5.6-sol@high fallback=ask -- audit the authorization layer
+```
+
+Grok rescue is write-capable by default and consumes the writer slot. Use `grok:rescue --readonly`, `grok:review`, or `grok:adversarial-review` for proposal-only or review work. Never report a readonly proposal as an applied change.
+
 ### Permission boundaries
+
+These hold at every level:
 
 - Only one writer may edit the active checkout at a time.
 - Codex and Grok write rescue consume the writer slot.
@@ -214,51 +257,16 @@ claude:<model-id>
 - Workers must return compact handoffs with evidence; the coordinator validates before claiming success.
 - The skill never auto-invokes; you must type `/orchestrate-agents`.
 
-### Examples
+### Cheat sheet
 
-Use the cheapest suitable worker:
-
-```text
-/orchestrate-agents economy -- find the cause of the failing integration test
-```
-
-Implement with Codex and review with Sonnet:
-
-```text
-/orchestrate-agents balanced agents=codex-terra,sonnet -- implement refresh-token rotation and verify the security boundaries
-```
-
-Select an exact Codex model and reasoning effort:
-
-```text
-/orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- plan and execute the database migration
-```
-
-Disable automatic model substitution:
-
-```text
-/orchestrate-agents balanced agents=codex-terra fallback=none -- fix the concurrency regression
-```
-
-Ask before substituting an unavailable model:
-
-```text
-/orchestrate-agents quality agents=codex:gpt-5.6-sol@high fallback=ask -- audit the authorization layer
-```
-
-Use Grok as an adversarial reviewer:
-
-```text
-/orchestrate-agents balanced agents=codex-terra,grok -- implement the retry fix and challenge its reliability assumptions
-```
-
-Select an exact Grok model and effort:
-
-```text
-/orchestrate-agents quality agents=sonnet,grok:grok-4.5@high -- design the migration and independently pressure-test the plan
-```
-
-Grok rescue is write-capable by default and consumes the writer slot. Use `grok:rescue --readonly`, `grok:review`, or `grok:adversarial-review` for proposal-only or review work. Never report a readonly proposal as an applied change.
+| Goal | Command |
+|---|---|
+| Quick cheap answer | `/orchestrate-agents economy -- <question>` |
+| Normal fix or feature | `/orchestrate-agents -- <task>` |
+| Implement + independent review | `/orchestrate-agents balanced agents=codex-terra,sonnet -- <task>` |
+| Adversarial second opinion | `/orchestrate-agents balanced agents=codex-terra,grok -- <task>` |
+| Hardest problems, exact models | `/orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- <task>` |
+| No silent model substitution | Append `fallback=none` (or `fallback=ask`) before `--` |
 
 Annotated session examples live in [`docs/examples/`](docs/examples/).
 
