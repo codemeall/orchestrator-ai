@@ -1,6 +1,6 @@
 # Orchestrate Agents
 
-A cost-aware Claude Code skill that delegates work across native Claude subagents, OpenAI Codex workers, and xAI Grok Build workers.
+A cost-aware Claude Code skill that delegates work across native Claude subagents, OpenAI Codex workers, xAI Grok Build workers, and Cursor workers.
 
 Use the parent Claude session as a thin coordinator while lower-cost agents handle repository discovery, implementation, debugging, testing, and targeted review. The skill supports named agents, three cost profiles, bounded concurrency, model fallbacks, and a single-writer rule that protects the active checkout.
 
@@ -12,7 +12,8 @@ Use the parent Claude session as a thin coordinator while lower-cost agents hand
 - Routes Claude-native work to Sonnet 5 or Haiku 4.5.
 - Routes coding work to GPT-5.6 Luna, Terra, or Sol through [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc).
 - Routes write rescue, readonly proposals, reviews, and adversarial second opinions through [`codemeall/grok-plugin-cc`](https://github.com/codemeall/grok-plugin-cc).
-- Lets you select agents, model IDs, and Codex or Grok reasoning effort per invocation.
+- Routes alternate implementation, write rescue, and cross-provider review through [`codemeall/cursor-plugin-cc`](https://github.com/codemeall/cursor-plugin-cc).
+- Lets you select agents and model IDs, plus Codex or Grok reasoning effort, per invocation.
 - Keeps the parent session focused on decomposition, coordination, and final synthesis.
 - Runs independent read-only tasks in parallel while allowing only one writer in the active checkout.
 - Requires compact, verifiable handoffs from every worker.
@@ -20,7 +21,7 @@ Use the parent Claude session as a thin coordinator while lower-cost agents hand
 
 ## Quick start (Claude-only)
 
-No Codex or Grok plugins required:
+No Codex, Grok, or Cursor plugins required:
 
 ```sh
 npx skills add codemeall/orchestrator-ai --skill orchestrate-agents -g -a claude-code -y
@@ -38,7 +39,8 @@ Then in Claude Code:
 2. Install the provider plugins you intend to use:
    - [Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc) for Codex workers.
    - [Grok plugin for Claude Code](https://github.com/codemeall/grok-plugin-cc), version 0.2.0 or newer, for Grok workers.
-3. Authenticate each selected provider. Native Claude-only routing does not require either external plugin.
+   - [Cursor plugin for Claude Code](https://github.com/codemeall/cursor-plugin-cc), version 0.1.0 or newer, for Cursor workers.
+3. Authenticate each selected provider. Native Claude-only routing does not require an external plugin.
 4. Access to the models you select. Preview-model availability can vary by account and rollout stage.
 
 ### Compatibility matrix
@@ -50,6 +52,7 @@ Then in Claude Code:
 | GitHub CLI skills | `gh` 2.90.0+ |
 | Codex plugin | `codex@openai-codex` via openai/codex-plugin-cc |
 | Grok plugin | `grok@grok-plugin-cc` 0.2.0+ |
+| Cursor plugin | `cursor@cursor-plugin-cc` 0.1.0+; working `cursor-agent` CLI |
 | PromptScript | Project-local installs only; no global skills dir |
 
 ### Set up Codex
@@ -89,6 +92,26 @@ Prefer verifying the installer source and comparing checksums when your environm
 ```
 
 For non-interactive environments, set `XAI_API_KEY`. If another executable named `grok` is earlier on `PATH`, set `GROK_CLI` to the official Grok Build binary, commonly `~/.grok/bin/grok`.
+
+### Set up Cursor
+
+Install and authenticate the Cursor Agent CLI:
+
+```sh
+curl https://cursor.com/install -fsS | bash
+cursor-agent login
+```
+
+For CI or other non-interactive environments, set `CURSOR_API_KEY`. Then install and verify the Cursor plugin from inside Claude Code:
+
+```text
+/plugin marketplace add codemeall/cursor-plugin-cc
+/plugin install cursor@cursor-plugin-cc
+/reload-plugins
+/cursor:setup
+```
+
+If `cursor-agent` is installed under a different name or path, set `CURSOR_PLUGIN_CURSOR_COMMAND` to that executable.
 
 ## Install
 
@@ -211,6 +234,7 @@ Add `agents=` with one or more built-in aliases:
 | `codex-terra` | Codex | `gpt-5.6-terra`, medium effort | General coding, debugging, implementation |
 | `codex-sol` | Codex | `gpt-5.6-sol`, medium effort | Migrations, architecture, security-sensitive coding |
 | `grok` | Grok Build | Configured Grok default | Write rescue, readonly proposals, adversarial review |
+| `cursor` | Cursor | Cursor `auto` | Alternate implementation, cross-provider review, write rescue |
 | `haiku` | Claude | `claude-haiku-4-5` | Search, inventory, summaries, simple read-only checks |
 | `sonnet` | Claude | `claude-sonnet-5` | Planning, analysis, documentation, implementation, or review |
 
@@ -229,8 +253,11 @@ For full control, replace aliases with full model specifications:
 codex:<model-id>@<effort>
 grok:<model-id>
 grok:<model-id>@<effort>
+cursor:<model-id>
 claude:<model-id>
 ```
+
+Cursor specifications do not accept `@effort`; effort variants are part of the model ID, for example `cursor:grok-4.5-xhigh`. The `grok` alias uses the xAI Grok Build CLI, while `cursor:grok-4.5-xhigh` uses a Grok model served through Cursor.
 
 Control substitution when a model is unavailable with `fallback=`:
 
@@ -241,19 +268,22 @@ Control substitution when a model is unavailable with `fallback=`:
 ```text
 /orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- plan and execute the database migration
 /orchestrate-agents quality agents=sonnet,grok:grok-4.5@high -- design the migration and independently pressure-test the plan
+/orchestrate-agents quality agents=codex-terra,cursor:composer-2.5 -- implement the fix and get a cross-provider review
 /orchestrate-agents balanced agents=codex-terra fallback=none -- fix the concurrency regression
 /orchestrate-agents quality agents=codex:gpt-5.6-sol@high fallback=ask -- audit the authorization layer
 ```
 
 Grok rescue is write-capable by default and consumes the writer slot. Use `grok:rescue --readonly`, `grok:review`, or `grok:adversarial-review` for proposal-only or review work. Never report a readonly proposal as an applied change.
 
+Cursor rescue is write-capable by default and consumes the writer slot. Use `cursor:rescue --readonly`, `cursor:review`, or `cursor:adversarial-review` for proposal-only or review work. Never report a readonly proposal as an applied change.
+
 ### Permission boundaries
 
 These hold at every level:
 
 - Only one writer may edit the active checkout at a time.
-- Codex and Grok write rescue consume the writer slot.
-- Codex/Grok review and Grok `rescue --readonly` are read-only and do not consume the writer slot.
+- Codex, Grok, and Cursor write rescue consume the writer slot.
+- Codex/Grok/Cursor review and Grok or Cursor `rescue --readonly` are read-only and do not consume the writer slot.
 - Workers must return compact handoffs with evidence; the coordinator validates before claiming success.
 - The skill never auto-invokes; you must type `/orchestrate-agents`.
 
@@ -265,6 +295,7 @@ These hold at every level:
 | Normal fix or feature | `/orchestrate-agents -- <task>` |
 | Implement + independent review | `/orchestrate-agents balanced agents=codex-terra,sonnet -- <task>` |
 | Adversarial second opinion | `/orchestrate-agents balanced agents=codex-terra,grok -- <task>` |
+| Cursor cross-provider review | `/orchestrate-agents balanced agents=codex-terra,cursor -- <task>` |
 | Hardest problems, exact models | `/orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- <task>` |
 | No silent model substitution | Append `fallback=none` (or `fallback=ask`) before `--` |
 
@@ -344,7 +375,7 @@ $ConfigDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-
 Remove-Item -Recurse -Force (Join-Path $ConfigDir 'skills\orchestrate-agents')
 ```
 
-Uninstalling removes the personal skill link or copy. It does not remove the cloned repository, Claude Code, provider CLIs, `codex-plugin-cc`, or `grok-plugin-cc`.
+Uninstalling removes the personal skill link or copy. It does not remove the cloned repository, Claude Code, provider CLIs, `codex-plugin-cc`, `grok-plugin-cc`, or `cursor-plugin-cc`.
 
 ## Troubleshooting
 
@@ -370,13 +401,21 @@ Uninstalling removes the personal skill link or copy. It does not remove the clo
 - If `PATH` resolves `grok` to a different tool, set `GROK_CLI` to the official Grok Build executable.
 - Remember Grok slash commands are user-only; the coordinator should dispatch through the Grok Agent with an explicit mode.
 
+### Cursor delegation is unavailable
+
+- Run `cursor-agent --version` and confirm the Cursor Agent CLI is on `PATH`.
+- Run `/cursor:setup` in Claude Code and confirm `cursor@cursor-plugin-cc` is enabled with `/plugin`.
+- Run `cursor-agent login`, or set `CURSOR_API_KEY` for non-interactive use.
+- If the executable uses a different name or path, set `CURSOR_PLUGIN_CURSOR_COMMAND`.
+- Remember Cursor slash commands are user-only; the coordinator should dispatch through the `cursor:cursor-rescue` Agent with an explicit mode.
+
 ### A requested model is unavailable
 
-- Use an alias such as `codex-terra` or `grok` instead of a preview model ID.
+- Use an alias such as `codex-terra`, `grok`, or `cursor` instead of a preview model ID.
 - Choose `fallback=auto` to permit a reported fallback for aliases.
 - Full model IDs default to `fallback=ask`.
 - Update the aliases in `routing-policy.md` to models available to your account.
-- Verify availability with `/codex:setup` or `/grok:setup`.
+- Verify availability with `/codex:setup`, `/grok:setup`, or `/cursor:setup`.
 
 ### The installer reports an existing target
 

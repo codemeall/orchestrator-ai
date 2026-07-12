@@ -13,14 +13,14 @@ body:
     id: provider
     attributes:
       label: Provider
-      description: Claude, Codex, or Grok
+      description: Claude, Codex, Grok, or Cursor
     validations:
       required: true
   - type: textarea
     id: setup
     attributes:
       label: Setup output
-      description: Relevant `/codex:setup` or `/grok:setup` details with secrets removed
+      description: Relevant `/codex:setup`, `/grok:setup`, or `/cursor:setup` details with secrets removed
     validations:
       required: false
   - type: dropdown

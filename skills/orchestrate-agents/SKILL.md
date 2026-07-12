@@ -1,13 +1,13 @@
 ---
 name: orchestrate-agents
-description: Coordinate cost-aware multi-agent work across native Claude subagents, the codex-plugin-cc Codex bridge, and the grok-plugin-cc Grok Build bridge. Use when the user explicitly invokes /orchestrate-agents to delegate coding, research, debugging, review, or implementation tasks to named Claude, Codex, or Grok workers while keeping the parent model focused on decomposition and synthesis.
+description: Coordinate cost-aware multi-agent work across native Claude subagents, the codex-plugin-cc Codex bridge, the grok-plugin-cc Grok Build bridge, and cursor-plugin-cc Cursor workers. Use when the user explicitly invokes /orchestrate-agents to delegate coding, research, debugging, review, or implementation tasks to named Claude, Codex, Grok, or Cursor workers while keeping the parent model focused on decomposition and synthesis.
 argument-hint: '[economy|balanced|quality] [agents=<list>] [fallback=auto|ask|none] -- <task>'
 disable-model-invocation: true
 license: MIT
-compatibility: Requires Claude Code 2.1.203+. Codex workers need openai/codex-plugin-cc. Grok workers need codemeall/grok-plugin-cc 0.2.0+ and a working Grok Build CLI. Native Claude-only routing needs no external plugins.
+compatibility: Requires Claude Code 2.1.203+. Codex workers need openai/codex-plugin-cc. Grok workers need codemeall/grok-plugin-cc 0.2.0+ and a working Grok Build CLI. Cursor workers need codemeall/cursor-plugin-cc 0.1.0+ and a working Cursor Agent CLI. Native Claude-only routing needs no external plugins.
 metadata:
   author: codemeall
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Orchestrate Agents
@@ -30,6 +30,7 @@ Examples:
 /orchestrate-agents balanced agents=codex-terra,sonnet -- implement and review refresh-token rotation
 /orchestrate-agents quality agents=codex:gpt-5.6-sol@high,claude:claude-sonnet-5 -- plan the database migration
 /orchestrate-agents quality agents=codex-terra,grok -- implement the fix and challenge its failure modes
+/orchestrate-agents quality agents=codex-terra,cursor -- implement the fix and get a cross-provider review
 ```
 
 ## Workflow
@@ -40,7 +41,7 @@ Examples:
 4. Create the smallest set of independent subtasks with explicit deliverables. Do not delegate vague duplicates of the whole request.
 5. State a compact routing plan before spawning workers: subtask, worker, read/write mode, and dependency.
 6. Dispatch independent read-only work in parallel. Dispatch dependent work sequentially. Do not perform broad repository inventory the worker will repeat. The coordinator may read only the minimum files needed to scope the subtask.
-7. Enforce the single-writer rule. Only one worker may edit the active checkout at a time. Serialize writers unless each has an isolated worktree and an explicit integration plan. Write-capable Grok rescue consumes the writer slot.
+7. Enforce the single-writer rule. Only one worker may edit the active checkout at a time. Serialize writers unless each has an isolated worktree and an explicit integration plan. Write-capable Grok rescue consumes the writer slot. Write-capable Cursor rescue consumes the writer slot.
 8. Wait for required results. Do not produce a final answer while a required worker is still running.
 9. Validate outputs proportionally to risk. Prefer a different model family for an independent high-risk review. Under `economy`, warn that independent cross-model review is unavailable and recommend `balanced` or `quality` when the task is high risk.
 10. Synthesize results without repeating each worker's full narrative. Report fallbacks, failures, changed files, verification, and remaining risks.
@@ -86,9 +87,28 @@ Never treat write-capable Grok rescue as proposal-only. Inspect any applied chan
 
 Never claim a Grok job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
 
+## Dispatch Cursor workers
+
+Require the installed [`codemeall/cursor-plugin-cc`](https://github.com/codemeall/cursor-plugin-cc) integration and a working `cursor-agent` login.
+
+Cursor slash commands are user-only. Dispatch through the `cursor:cursor-rescue` Agent and request the needed mode explicitly:
+
+- Write or apply-fix work: `cursor:rescue` (write-capable by default). This consumes the writer slot.
+- Proposal-only investigation: `cursor:rescue --readonly`, or ask the Agent for readonly rescue semantics.
+- Normal read-only review: `cursor:review`.
+- Architecture, reliability, security, scale, and assumption challenges: `cursor:adversarial-review`.
+
+Pass `--model <id>` when the user supplies a full Cursor specification `cursor:<model-id>`. Cursor has no effort flag; effort variants are part of the model ID, for example `cursor:grok-4.5-xhigh`.
+
+Use background execution for independent long-running work and retain the returned job identifier for `cursor:status` and `cursor:result`.
+
+Never treat write-capable Cursor rescue as proposal-only. Inspect any applied changes or proposed patch before reporting files as changed. A `--readonly` proposal is not an applied change until the coordinator or designated writer applies it.
+
+Never claim a Cursor job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
+
 ## Background jobs
 
-For Codex or Grok background work:
+For Codex, Grok, or Cursor background work:
 
 1. Retain the task or job identifier at dispatch.
 2. Poll status until completion, failure, or timeout.

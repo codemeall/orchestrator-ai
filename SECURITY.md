@@ -23,7 +23,8 @@ This skill coordinates AI coding agents that can read and modify repositories an
 
 - explicit `/orchestrate-agents` invocation;
 - single-writer enforcement for the active checkout;
-- read-only review paths for Codex and Grok review commands;
-- write-capable Grok rescue only when intentionally selected.
+- read-only review paths for Codex, Grok, and Cursor review commands;
+- write-capable Grok rescue only when intentionally selected;
+- write-capable Cursor rescue only when intentionally selected.
 
 Reports that depend solely on a user approving a dangerous task in an already-trusted local agent session are generally out of scope, but hardening suggestions are still welcome.

@@ -1,4 +1,4 @@
-# v1.0.0 Release Checklist
+# v1.1.0 Release Checklist
 
 This checklist prepares a release candidate. Do **not** tag or publish until every item is complete and an explicit go-live approval is given.
 
@@ -8,6 +8,9 @@ This checklist prepares a release candidate. Do **not** tag or publish until eve
 - [ ] Grok readonly/review paths documented separately
 - [ ] Codex review vs rescue split documented
 - [ ] Grok effort grammar documented consistently
+- [ ] Cursor alias and `cursor:<model-id>` grammar documented without an `@effort` suffix
+- [ ] Cursor rescue documented as write-capable by default; readonly/review paths documented separately
+- [ ] `grok` vs Cursor-hosted Grok model execution paths are disambiguated
 - [ ] Profile caps vs `agents=` precedence documented
 - [ ] Sonnet-to-Haiku fallback limited to read-only low-risk work
 - [ ] Compact handoff retains verification/evidence quality bars
@@ -29,6 +32,8 @@ Record host/plugin versions and pass/fail for each:
 - [ ] Codex read-only review
 - [ ] Grok read-only review
 - [ ] Grok write rescue
+- [ ] Cursor read-only review
+- [ ] Cursor write rescue
 - [ ] Explicit model selection
 - [ ] `fallback=auto`
 - [ ] `fallback=ask`
@@ -36,17 +41,18 @@ Record host/plugin versions and pass/fail for each:
 
 ## Launch assets
 
-- [ ] CHANGELOG entry for 1.0.0 is accurate
+- [ ] CHANGELOG entry for 1.1.0 is accurate
 - [ ] SECURITY.md and CONTRIBUTING.md are present
 - [ ] Issue templates are present
 - [ ] Working tree is clean
 - [ ] GitHub description/topics prepared
+- [ ] GitHub topics include `cursor`
 - [ ] Release notes drafted
 
 ## Explicit go-live (separate approval)
 
 - [ ] Review [`docs/release-candidate-verification.md`](release-candidate-verification.md)
-- [ ] Tag `v1.0.0` on the tested commit
+- [ ] Tag `v1.1.0` on the tested commit
 - [ ] Create GitHub Release
 - [ ] Confirm badges resolve to real CI/release artifacts
 - [ ] Announce install command using `--skill orchestrate-agents`

@@ -20,3 +20,11 @@ Expected finish shape:
 - Explicit models and efforts
 - Verification evidence from the write path
 - Distinct adversarial findings, not a restatement of the implementation summary
+
+Cursor can provide the same provider-diversity role without changing the profile defaults:
+
+```text
+/orchestrate-agents quality agents=codex-terra,cursor:grok-4.5-xhigh -- implement the retry fix and get a cross-provider adversarial review
+```
+
+The Cursor reviewer uses `cursor:adversarial-review`. Cursor model IDs have no `@effort` suffix; `grok-4.5-xhigh` already includes its effort variant. This differs from the `grok` alias, which routes through the xAI Grok Build CLI.

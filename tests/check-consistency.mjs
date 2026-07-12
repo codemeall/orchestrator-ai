@@ -25,7 +25,7 @@ function has(text, needle) {
   return text.includes(needle);
 }
 
-assert(has(skill, 'version: "1.0.0"'), "SKILL.md must declare metadata.version 1.0.0");
+assert(has(skill, 'version: "1.1.0"'), "SKILL.md must declare metadata.version 1.1.0");
 assert(has(skill, "license: MIT"), "SKILL.md must declare MIT license");
 assert(has(skill, "compatibility:"), "SKILL.md must declare compatibility");
 assert(has(skill, "disable-model-invocation: true"), "SKILL.md must remain user-invoked only");
@@ -33,9 +33,12 @@ assert(has(skill, "argument-hint:"), "SKILL.md must keep Claude argument-hint");
 assert(has(skill, "claude:claude-haiku-4-5"), "SKILL.md must use a valid pinned Claude full-spec example");
 assert(!has(skill, "agents=claude:haiku"), "SKILL.md must not use invalid claude:haiku full-spec example");
 assert(has(skill, "Write-capable Grok rescue consumes the writer slot"), "SKILL.md must treat Grok rescue as write-capable by default");
+assert(has(skill, "Write-capable Cursor rescue"), "SKILL.md must treat Cursor rescue as write-capable by default");
 assert(!has(skill, "Treat Grok rescue output as proposal-only"), "SKILL.md must not claim Grok rescue is always proposal-only");
 assert(has(skill, "codex:review"), "SKILL.md must route Codex read-only work through review");
 assert(has(skill, "grok:<model-id>@<effort>"), "SKILL.md must document Grok effort grammar");
+assert(has(skill, "cursor:review"), "SKILL.md must route Cursor read-only work through review");
+assert(has(skill, "cursor:<model-id>"), "SKILL.md must document Cursor model grammar");
 assert(has(skill, "Profile caps are hard limits"), "SKILL.md must define profile-cap precedence");
 assert(has(skill, "Always forward any user-supplied procedures"), "SKILL.md must preserve user-supplied procedures");
 assert(has(skill, "whether EVIDENCE was spot-checked"), "SKILL.md single-worker finish must retain evidence validation");
@@ -43,6 +46,8 @@ assert(has(skill, "sonnet` may fall back to `haiku` automatically only for read-
 
 assert(has(policy, "grok:<model-id>@<effort>"), "routing-policy.md must support Grok effort grammar");
 assert(has(policy, "Write-capable Grok rescue"), "routing-policy.md must treat write-capable Grok rescue as a writer");
+assert(has(policy, "cursor:<model-id>"), "routing-policy.md must support Cursor model grammar");
+assert(has(policy, "Write-capable Cursor rescue"), "routing-policy.md must treat write-capable Cursor rescue as a writer");
 assert(!has(policy, "Treat Grok rescue as proposal-only"), "routing-policy.md must not claim Grok rescue is proposal-only");
 assert(has(policy, "Classification to profile mapping"), "routing-policy.md must map classifications to profiles");
 assert(has(policy, "for read-only low-risk work only; otherwise require approval"), "routing-policy.md must keep sonnet->haiku approval rule");
@@ -52,6 +57,8 @@ assert(has(readme, "gh skill update orchestrate-agents"), "README must use valid
 assert(!has(readme, "gh skill update orchestrate-agents --agent claude-code --scope user"), "README must not use invalid gh skill update flags");
 assert(has(readme, "npx skills remove orchestrate-agents -g"), "README must document Skills CLI uninstall");
 assert(has(readme, "Grok rescue is write-capable by default"), "README must document write-capable Grok rescue");
+assert(has(readme, "Cursor rescue is write-capable by default"), "README must document write-capable Cursor rescue");
+assert(has(readme, "cursor:<model-id>"), "README must document Cursor model grammar");
 assert(has(readme, "Compatibility matrix"), "README must include a compatibility matrix");
 assert(has(readme, "Quick start (Claude-only)"), "README must include Claude-only quick start");
 assert(has(readme, "Permission boundaries"), "README must document permission boundaries");

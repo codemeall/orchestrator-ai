@@ -1,7 +1,7 @@
 interface:
   display_name: "Orchestrate Agents"
-  short_description: "Route work across Claude, Codex, and Grok"
-  default_prompt: "Use $orchestrate-agents to delegate this task across cost-effective Claude, Codex, and Grok workers."
+  short_description: "Route work across Claude, Codex, Grok, and Cursor"
+  default_prompt: "Use $orchestrate-agents to delegate this task across cost-effective Claude, Codex, Grok, and Cursor workers."
 policy:
   allow_implicit_invocation: false
 metadata:
