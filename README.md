@@ -257,7 +257,7 @@ cursor:<model-id>
 claude:<model-id>
 ```
 
-Cursor specifications do not accept `@effort`; effort variants are part of the model ID, for example `cursor:grok-4.5-xhigh`. The `grok` alias uses the xAI Grok Build CLI, while `cursor:grok-4.5-xhigh` uses a Grok model served through Cursor.
+Cursor specifications do not accept `@effort`; effort variants are distinct model IDs. Cursor raw model IDs drift between releases — run `cursor-agent --list-models` (or `/cursor:models`) to see the current catalog — so prefer the Cursor plugin aliases `grok`, `grok-fast`, `composer`, and `composer-fast` for stable naming. The `agents=` alias `grok` uses the xAI Grok Build CLI, while a Grok model requested through Cursor (for example `cursor:grok`) is served through Cursor; they are distinct execution paths.
 
 Control substitution when a model is unavailable with `fallback=`:
 
@@ -315,6 +315,19 @@ The parent Claude session:
 8. Returns one integrated result rather than copying full worker transcripts.
 
 The detailed aliases, profile defaults, and fallback order live in [`skills/orchestrate-agents/references/routing-policy.md`](skills/orchestrate-agents/references/routing-policy.md).
+
+## How delegation actually executes
+
+No worker ever opens a new terminal or interactive session. Every delegation uses one of two mechanisms:
+
+| Worker | Mechanism |
+|---|---|
+| `haiku`, `sonnet` | Native Claude Code subagent (Agent tool) inside the same session — no separate process |
+| `codex-*` | `codex:rescue` command (model-invocable) or the `codex:codex-rescue` Agent → the Codex plugin's companion script → Codex CLI in headless mode |
+| `grok` | `grok:grok-rescue` Agent → the Grok plugin's companion script → Grok Build CLI in headless mode |
+| `cursor` | `cursor:cursor-rescue` Agent → the Cursor plugin's companion script → `cursor-agent --print --output-format json --trust --sandbox enabled` |
+
+For the external providers, the plugin's rescue Agent is itself a Claude Code subagent with shell access. It runs the plugin's companion script, which invokes the provider CLI headless (print mode, JSON output) and captures the output. Long-running work runs as a detached background process tracked by a job ID; the coordinator polls status and fetches the result through the plugin's `status` and `result` commands. The captured output is condensed into the worker result contract, so the coordinator only ever sees a compact handoff — never a live terminal.
 
 ## Customization
 
@@ -442,15 +455,20 @@ The installer refuses to overwrite an existing skill unless the Unix symlink alr
 ├── install.ps1
 ├── docs/
 │   ├── examples/
-│   └── release-checklist.md
+│   ├── release-checklist.md
+│   └── release-candidate-verification.md
 ├── scripts/
 │   └── validate-skill.mjs
 ├── tests/
+│   ├── check-consistency.mjs
+│   ├── fixtures/
+│   ├── smoke-install.sh
+│   └── smoke-install.ps1
 └── skills/
     └── orchestrate-agents/
         ├── SKILL.md
         ├── agents/
-        │   └── openai.yaml
+        │   └── openai.yaml   # Skills CLI / cross-agent metadata, not routing config
         └── references/
             └── routing-policy.md
 ```

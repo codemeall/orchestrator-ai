@@ -67,6 +67,14 @@ assert(has(readme, "grok:<model-id>@<effort>"), "README must document Grok effor
 
 assert(has(openaiYaml, "allow_implicit_invocation: false"), "openai.yaml must keep implicit invocation disabled");
 
+const skillVersion = skill.match(/^\s*version: "([^"]+)"/m)?.[1];
+const openaiVersion = openaiYaml.match(/^\s*version: "([^"]+)"/m)?.[1];
+assert(skillVersion, "SKILL.md must declare a quoted metadata.version");
+assert(
+  skillVersion === openaiVersion,
+  `openai.yaml version (${openaiVersion}) must match SKILL.md metadata.version (${skillVersion})`
+);
+
 const requiredFiles = [
   "CHANGELOG.md",
   "SECURITY.md",

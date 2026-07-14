@@ -18,7 +18,9 @@ mkdir -p "$SKILLS_DIR"
 
 if [ -L "$TARGET" ]; then
   CURRENT_TARGET=$(readlink "$TARGET")
-  if [ "$CURRENT_TARGET" = "$SOURCE" ]; then
+  RESOLVED_TARGET=$(CDPATH= cd -- "$TARGET" 2>/dev/null && pwd -P || true)
+  RESOLVED_SOURCE=$(CDPATH= cd -- "$SOURCE" && pwd -P)
+  if [ -n "$RESOLVED_TARGET" ] && [ "$RESOLVED_TARGET" = "$RESOLVED_SOURCE" ]; then
     echo "Orchestrate Agents is already installed at $TARGET"
     exit 0
   fi

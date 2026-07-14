@@ -10,6 +10,8 @@ Use aliases so routine invocations remain stable when provider model catalogs ch
 - Cursor full specification: `cursor:<model-id>` (no effort suffix; effort variants are distinct model IDs).
 - Claude full specification: `claude:<model-id>`.
 - Supported Codex and Grok efforts depend on the installed plugin and CLI. Pass the requested value unchanged and handle provider rejection through the fallback policy.
+- Reject `cursor:<model-id>@<effort>` before dispatch; fold the requested effort into the nearest real Cursor model ID instead.
+- Validate full Cursor model IDs against `cursor-agent --list-models` before dispatch. Cursor raw IDs drift between releases (for example, Grok variants may appear as `cursor-grok-4.5-high` rather than an older `grok-4.5-xhigh`). Prefer the Cursor plugin aliases `grok`, `grok-fast`, `composer`, and `composer-fast` for stable naming.
 - When no Grok model ID is supplied, use the Grok Build CLI configured default.
 - When no Cursor model ID is supplied, use Cursor `auto`.
 
@@ -77,7 +79,7 @@ Honor an explicit user profile or `agents=` list over this table. Profile caps r
 - Prefer Grok for write rescue when requested, readonly proposals, adversarial review, and a third-provider opinion on assumptions or failure modes.
 - Prefer Cursor for alternate implementation when requested, cross-provider adversarial review, and fallback provider diversity.
 - Prefer a different model family for high-risk review: review Codex-written changes with Claude, Grok, or Cursor; Claude-written changes with Codex, Grok, or Cursor; Grok-written changes with Claude, Codex, or Cursor; and Cursor-written changes with Claude, Codex, or Grok.
-- Treat `grok` as the xAI Grok Build CLI provider and `cursor:grok-4.5-xhigh` as the Grok model served through Cursor; they are distinct execution paths.
+- Treat the `grok` alias as the xAI Grok Build CLI provider and a Grok model requested through Cursor (for example `cursor:grok` via the Cursor plugin alias) as a Grok model served through Cursor; they are distinct execution paths.
 - Prefer the cheapest worker that can complete the task with acceptable risk.
 - Escalate from Luna to Terra to Sol only when task complexity or evidence justifies it.
 - Avoid assigning the same whole task to multiple agents. Give each worker a distinct deliverable.

@@ -14,6 +14,8 @@ metadata:
 
 Treat the parent session model as coordinator. Delegate substantive work when delegation will save parent-model effort or improve quality. Keep trivial work local when delegation overhead would be greater than completing it directly, unless the user explicitly invoked `/orchestrate-agents economy` and expects a Haiku worker.
 
+Execution mechanics: Claude workers run as native subagents in the current session; Codex, Grok, and Cursor workers run as headless provider-CLI processes launched through their plugins' rescue Agents and companion scripts — never in a new terminal. See the README section "How delegation actually executes" for details.
+
 Parse the invocation from `$ARGUMENTS`:
 
 - Accept `economy`, `balanced`, or `quality` as the first bare profile name, or accept `profile=<name>`.
@@ -60,7 +62,7 @@ Do not allow workers to create further workers unless the user explicitly reques
 
 Require the installed `codex-plugin-cc` integration.
 
-For write or implementation work, prefer the plugin's `codex:rescue` workflow with the resolved `--model` and `--effort` values. If the host cannot invoke the rescue command directly, invoke the `codex:codex-rescue` Agent and include the exact model, effort, task, write scope, and result contract in its prompt.
+For write or implementation work, prefer the plugin's `codex:rescue` workflow with the resolved `--model` and `--effort` values. Unlike Grok and Cursor, the Codex plugin exposes `codex:rescue` as a model-invocable command, so the coordinator may call it directly. If the host cannot invoke the rescue command directly, invoke the `codex:codex-rescue` Agent and include the exact model, effort, task, write scope, and result contract in its prompt.
 
 For read-only review, use `codex:review` or `codex:adversarial-review`. Do not route read-only work through write-capable rescue with soft "do not edit" instructions.
 
@@ -72,12 +74,12 @@ Never claim a Codex task succeeded from dispatch alone. Retrieve its completed r
 
 Require the installed [`codemeall/grok-plugin-cc`](https://github.com/codemeall/grok-plugin-cc) integration and a working Grok Build CLI login.
 
-Grok slash commands are user-only. Prefer Agent-based dispatch that requests the needed mode explicitly:
+Grok slash commands (`grok:rescue`, `grok:review`, `grok:adversarial-review`) are user-only; the coordinator cannot invoke them. Dispatch through the `grok:grok-rescue` Agent and request the needed mode explicitly in its prompt:
 
-- Write or apply-fix work: `grok:rescue` (write-capable by default). This consumes the writer slot.
-- Proposal-only investigation: `grok:rescue --readonly`, or ask the Agent for readonly rescue semantics.
-- Normal read-only review: `grok:review`.
-- Architecture, reliability, security, scale, and assumption challenges: `grok:adversarial-review`.
+- Write or apply-fix work: rescue mode (write-capable by default). This consumes the writer slot.
+- Proposal-only investigation: readonly rescue (`--readonly` semantics) — request a proposal without edits.
+- Normal read-only review: review mode (the `grok:review` behavior).
+- Architecture, reliability, security, scale, and assumption challenges: adversarial review mode (the `grok:adversarial-review` behavior).
 
 Pass `--model <id>` and `--effort <level>` when the user supplies a full Grok specification `grok:<model-id>` or `grok:<model-id>@<effort>`. Supported efforts depend on the installed Grok plugin and CLI; pass the requested value unchanged and handle rejection through the fallback policy.
 
@@ -91,14 +93,16 @@ Never claim a Grok job succeeded from dispatch alone. Retrieve its completed res
 
 Require the installed [`codemeall/cursor-plugin-cc`](https://github.com/codemeall/cursor-plugin-cc) integration and a working `cursor-agent` login.
 
-Cursor slash commands are user-only. Dispatch through the `cursor:cursor-rescue` Agent and request the needed mode explicitly:
+Cursor slash commands (`cursor:rescue`, `cursor:review`, `cursor:adversarial-review`) are user-only; the coordinator cannot invoke them. Dispatch through the `cursor:cursor-rescue` Agent and request the needed mode explicitly in its prompt:
 
-- Write or apply-fix work: `cursor:rescue` (write-capable by default). This consumes the writer slot.
-- Proposal-only investigation: `cursor:rescue --readonly`, or ask the Agent for readonly rescue semantics.
-- Normal read-only review: `cursor:review`.
-- Architecture, reliability, security, scale, and assumption challenges: `cursor:adversarial-review`.
+- Write or apply-fix work: rescue mode (write-capable by default). This consumes the writer slot.
+- Proposal-only investigation: readonly rescue (`--readonly` semantics) — request a proposal without edits.
+- Normal read-only review: review mode (the `cursor:review` behavior).
+- Architecture, reliability, security, scale, and assumption challenges: adversarial review mode (the `cursor:adversarial-review` behavior).
 
-Pass `--model <id>` when the user supplies a full Cursor specification `cursor:<model-id>`. Cursor has no effort flag; effort variants are part of the model ID, for example `cursor:grok-4.5-xhigh`.
+Pass `--model <id>` when the user supplies a full Cursor specification `cursor:<model-id>`. Cursor has no effort flag; effort variants are distinct model IDs. If the user writes `cursor:<model-id>@<effort>`, do not dispatch it as written: explain that Cursor takes no effort suffix and fold the requested effort into the nearest real model ID.
+
+Before dispatching any full Cursor specification, validate the model ID against the install's catalog with `cursor-agent --list-models` (read-only). Cursor raw model IDs drift between releases, so prefer the Cursor plugin aliases (`grok`, `grok-fast`, `composer`, `composer-fast`) for stable naming. If a requested ID is not in the catalog and the effective policy is `fallback=ask`, present the nearest real model IDs from the catalog and ask the user to choose — never end the run reporting only that no worker was used.
 
 Use background execution for independent long-running work and retain the returned job identifier for `cursor:status` and `cursor:result`.
 
@@ -131,7 +135,7 @@ For Codex, Grok, or Cursor background work:
 Never silently replace an explicitly requested model.
 
 - With `fallback=auto`, announce the unavailable worker, select the nearest compatible alias from the routing policy, and record the substitution in the final response.
-- With `fallback=ask`, pause before substituting an explicitly requested worker.
+- With `fallback=ask`, pause before substituting an explicitly requested worker: present the nearest available candidates and ask the user to choose. Do not end the run with no worker used and no question asked.
 - With `fallback=none`, stop the affected subtask and report the blocker.
 - Do not substitute a read-only worker with a writer or broaden permissions during fallback.
 - `sonnet` may fall back to `haiku` automatically only for read-only low-risk work. For write, planning, or high-risk work, treat that substitution as `fallback=ask` even when the invocation default is `auto`.

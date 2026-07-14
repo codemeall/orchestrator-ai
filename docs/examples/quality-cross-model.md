@@ -24,7 +24,7 @@ Expected finish shape:
 Cursor can provide the same provider-diversity role without changing the profile defaults:
 
 ```text
-/orchestrate-agents quality agents=codex-terra,cursor:grok-4.5-xhigh -- implement the retry fix and get a cross-provider adversarial review
+/orchestrate-agents quality agents=codex-terra,cursor:grok -- implement the retry fix and get a cross-provider adversarial review
 ```
 
-The Cursor reviewer uses `cursor:adversarial-review`. Cursor model IDs have no `@effort` suffix; `grok-4.5-xhigh` already includes its effort variant. This differs from the `grok` alias, which routes through the xAI Grok Build CLI.
+The Cursor reviewer runs in adversarial-review mode. Cursor model IDs have no `@effort` suffix; effort variants are distinct model IDs, and raw IDs drift between releases, so the stable Cursor plugin alias `cursor:grok` is preferred over a pinned raw ID. This differs from the bare `grok` alias, which routes through the xAI Grok Build CLI.
