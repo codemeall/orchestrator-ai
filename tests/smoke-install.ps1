@@ -22,14 +22,24 @@ try {
         Write-Host "Windows installer created a directory copy."
     }
 
+    # Second install must either report idempotent success (symlink path) or
+    # refuse the existing target (directory-copy fallback path).
+    $secondOutput = ""
+    $secondError = $null
     try {
-        & (Join-Path $Root "install.ps1")
-        throw "Expected second install to refuse an existing target or report idempotent success"
+        $secondOutput = (& (Join-Path $Root "install.ps1") *>&1 | Out-String)
     } catch {
-        if ($_.Exception.Message -notmatch "already exists|already installed") {
-            throw
+        $secondError = $_.Exception.Message
+    }
+    if ($null -ne $secondError) {
+        if ($secondError -notmatch "already exists") {
+            throw "Second install failed unexpectedly: $secondError"
         }
-        Write-Host "Second install correctly refused or reported existing install."
+        Write-Host "Second install correctly refused the existing target."
+    } elseif ($secondOutput -match "already installed") {
+        Write-Host "Second install reported idempotent success."
+    } else {
+        throw "Expected second install to refuse an existing target or report idempotent success. Output: $secondOutput"
     }
 
     Write-Host "Windows installer smoke test passed."

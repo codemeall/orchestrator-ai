@@ -2,7 +2,7 @@
 
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 SOURCE="$SCRIPT_DIR/skills/orchestrate-agents"
 CONFIG_DIR=${CLAUDE_CONFIG_DIR:-"$HOME/.claude"}
 SKILLS_DIR="$CONFIG_DIR/skills"
@@ -18,8 +18,8 @@ mkdir -p "$SKILLS_DIR"
 
 if [ -L "$TARGET" ]; then
   CURRENT_TARGET=$(readlink "$TARGET")
-  RESOLVED_TARGET=$(CDPATH= cd -- "$TARGET" 2>/dev/null && pwd -P || true)
-  RESOLVED_SOURCE=$(CDPATH= cd -- "$SOURCE" && pwd -P)
+  RESOLVED_TARGET=$(CDPATH='' cd -- "$TARGET" 2>/dev/null && pwd -P) || RESOLVED_TARGET=""
+  RESOLVED_SOURCE=$(CDPATH='' cd -- "$SOURCE" && pwd -P)
   if [ -n "$RESOLVED_TARGET" ] && [ "$RESOLVED_TARGET" = "$RESOLVED_SOURCE" ]; then
     echo "Orchestrate Agents is already installed at $TARGET"
     exit 0
