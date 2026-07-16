@@ -45,7 +45,12 @@ if (!match) {
   if (!/description:\s+\S+/.test(frontmatter)) fail("description is required");
   if (!frontmatter.includes("license: MIT")) fail("license must be MIT");
   if (!frontmatter.includes("compatibility:")) fail("compatibility is required");
-  if (!frontmatter.includes('version: "1.1.0"')) fail('metadata.version must be "1.1.0"');
+  const version = frontmatter.match(/^\s*version: "([^"]*)"\s*$/m)?.[1];
+  if (!version) {
+    fail("metadata.version must be a quoted string");
+  } else if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    fail(`metadata.version must be semver (X.Y.Z), got "${version}"`);
+  }
   if (!frontmatter.includes("disable-model-invocation: true")) {
     fail("disable-model-invocation must remain true");
   }

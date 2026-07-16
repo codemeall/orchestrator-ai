@@ -4,10 +4,10 @@ description: Coordinate cost-aware multi-agent work across native Claude subagen
 argument-hint: '[economy|balanced|quality] [agents=<list>] [fallback=auto|ask|none] -- <task>'
 disable-model-invocation: true
 license: MIT
-compatibility: Requires Claude Code 2.1.203+. Codex workers need openai/codex-plugin-cc. Grok workers need codemeall/grok-plugin-cc 0.2.0+ and a working Grok Build CLI. Cursor workers need codemeall/cursor-plugin-cc 0.1.0+ and a working Cursor Agent CLI. Native Claude-only routing needs no external plugins.
+compatibility: Requires Claude Code 2.1.203+. Codex workers need openai/codex-plugin-cc. Grok workers need codemeall/grok-plugin-cc 0.3.0+ and a working Grok Build CLI. Cursor workers need codemeall/cursor-plugin-cc 0.2.0+ and a working Cursor Agent CLI. Native Claude-only routing needs no external plugins.
 metadata:
   author: codemeall
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Orchestrate Agents
@@ -87,7 +87,7 @@ Use background execution for independent long-running work and retain the return
 
 Never treat write-capable Grok rescue as proposal-only. Inspect any applied changes or proposed patch before reporting files as changed. A `--readonly` proposal is not an applied change until the coordinator or designated writer applies it.
 
-Never claim a Grok job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
+Never claim a Grok job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence. The companion's process exit status does not signal run success; check the `Succeeded:` line in the result's `# Session Metadata` or the job `status` from `grok:status`/`grok:result`.
 
 ## Dispatch Cursor workers
 
@@ -108,7 +108,7 @@ Use background execution for independent long-running work and retain the return
 
 Never treat write-capable Cursor rescue as proposal-only. Inspect any applied changes or proposed patch before reporting files as changed. A `--readonly` proposal is not an applied change until the coordinator or designated writer applies it.
 
-Never claim a Cursor job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence.
+Never claim a Cursor job succeeded from dispatch alone. Retrieve its completed result and inspect the patch, findings, and verification evidence. The companion's process exit status does not signal run success; check the `Succeeded:` line in the result's `# Session Metadata` or the job `status` from `cursor:status`/`cursor:result`.
 
 ## Background jobs
 
@@ -119,6 +119,8 @@ For Codex, Grok, or Cursor background work:
 3. On completion, fetch the result and inspect verification evidence before synthesizing.
 4. On timeout or stuck status, cancel once, then apply one retry or the configured fallback.
 5. Do not answer the user while a required background job is still running.
+
+Never infer success from a companion command's exit status: provider companion processes can exit 0 even when the underlying model run failed. Determine success from the result content — the `Succeeded:` line under `# Session Metadata` for foreground runs, or the job `status` reported by the provider's `status`/`result` commands for background jobs.
 
 ## Control cost and concurrency
 

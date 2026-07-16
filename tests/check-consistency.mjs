@@ -9,11 +9,17 @@ const skillPath = path.join(root, "skills/orchestrate-agents/SKILL.md");
 const policyPath = path.join(root, "skills/orchestrate-agents/references/routing-policy.md");
 const readmePath = path.join(root, "README.md");
 const openaiYamlPath = path.join(root, "skills/orchestrate-agents/agents/openai.yaml");
+const changelogPath = path.join(root, "CHANGELOG.md");
+const packagePath = path.join(root, "package.json");
+const fixturesPath = path.join(root, "tests/fixtures/routing-cases.md");
 
 const skill = fs.readFileSync(skillPath, "utf8");
 const policy = fs.readFileSync(policyPath, "utf8");
 const readme = fs.readFileSync(readmePath, "utf8");
 const openaiYaml = fs.readFileSync(openaiYamlPath, "utf8");
+const changelog = fs.readFileSync(changelogPath, "utf8");
+const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+const fixtures = fs.readFileSync(fixturesPath, "utf8");
 
 const failures = [];
 
@@ -25,7 +31,6 @@ function has(text, needle) {
   return text.includes(needle);
 }
 
-assert(has(skill, 'version: "1.1.0"'), "SKILL.md must declare metadata.version 1.1.0");
 assert(has(skill, "license: MIT"), "SKILL.md must declare MIT license");
 assert(has(skill, "compatibility:"), "SKILL.md must declare compatibility");
 assert(has(skill, "disable-model-invocation: true"), "SKILL.md must remain user-invoked only");
@@ -71,9 +76,93 @@ const skillVersion = skill.match(/^\s*version: "([^"]+)"/m)?.[1];
 const openaiVersion = openaiYaml.match(/^\s*version: "([^"]+)"/m)?.[1];
 assert(skillVersion, "SKILL.md must declare a quoted metadata.version");
 assert(
+  skillVersion && /^\d+\.\d+\.\d+$/.test(skillVersion),
+  `SKILL.md metadata.version must be semver (X.Y.Z), got "${skillVersion}"`
+);
+assert(
   skillVersion === openaiVersion,
   `openai.yaml version (${openaiVersion}) must match SKILL.md metadata.version (${skillVersion})`
 );
+
+const changelogVersion = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/m)?.[1];
+assert(
+  changelogVersion === skillVersion,
+  `CHANGELOG.md top entry (${changelogVersion}) must match SKILL.md metadata.version (${skillVersion})`
+);
+assert(
+  pkg.version === skillVersion,
+  `package.json version (${pkg.version}) must match SKILL.md metadata.version (${skillVersion})`
+);
+assert(pkg.license === "MIT", "package.json must declare MIT license");
+
+// Routing fixtures: parse tests/fixtures/routing-cases.md and enforce its invariants.
+const profileCaps = { economy: 1, balanced: 2, quality: 3 };
+assert(
+  has(skill, "`economy`: use at most one worker") &&
+    has(skill, "`balanced`: use at most two workers") &&
+    has(skill, "`quality`: use at most three workers"),
+  "SKILL.md must state the economy=1 / balanced=2 / quality=3 worker caps the fixtures rely on"
+);
+
+const fixtureCases = [];
+let currentCase = null;
+for (const line of fixtures.split("\n")) {
+  const heading = line.match(/^### (.+)$/);
+  if (heading) {
+    currentCase = { name: heading[1].trim(), fields: {} };
+    fixtureCases.push(currentCase);
+    continue;
+  }
+  const field = currentCase && line.match(/^- ([A-Za-z]+): (.+)$/);
+  if (field) currentCase.fields[field[1]] = field[2].trim();
+}
+
+assert(fixtureCases.length > 0, "routing-cases.md must define at least one fixture case");
+
+const fullSpecPattern = /^(claude|codex|grok|cursor):\S+$/;
+for (const { name, fields } of fixtureCases) {
+  for (const required of ["invocation", "profile", "maxWorkers", "expectedWorkers", "requirePolicyRead"]) {
+    assert(fields[required], `fixture ${name} must declare ${required}`);
+  }
+  if (!fields.profile || !fields.maxWorkers || !fields.invocation) continue;
+
+  const cap = profileCaps[fields.profile];
+  assert(cap !== undefined, `fixture ${name} uses unknown profile "${fields.profile}"`);
+  assert(
+    Number(fields.maxWorkers) === cap,
+    `fixture ${name}: maxWorkers (${fields.maxWorkers}) must equal the ${fields.profile} cap (${cap})`
+  );
+
+  const expected = (fields.expectedWorkers ?? "")
+    .replace(/^\[|\]$/g, "")
+    .split(",")
+    .map((worker) => worker.trim())
+    .filter(Boolean);
+  assert(
+    expected.length > 0 && expected.length <= cap,
+    `fixture ${name}: expectedWorkers count (${expected.length}) must be between 1 and the profile cap (${cap})`
+  );
+
+  // The policy read may be skipped only when every requested agent is a full provider:model spec.
+  const agentsList = fields.invocation.match(/agents=([^\s`]+)/)?.[1];
+  const requestedAgents = agentsList ? agentsList.split(",").map((agent) => agent.trim()) : [];
+  const allFullSpecs = requestedAgents.length > 0 && requestedAgents.every((agent) => fullSpecPattern.test(agent));
+  if (fields.requirePolicyRead === "false") {
+    assert(
+      allFullSpecs,
+      `fixture ${name}: requirePolicyRead may be false only when every agent in the invocation is a full provider:model specification`
+    );
+  } else {
+    assert(
+      fields.requirePolicyRead === "true",
+      `fixture ${name}: requirePolicyRead must be "true" or "false", got "${fields.requirePolicyRead}"`
+    );
+    assert(
+      !allFullSpecs || requestedAgents.length === 0,
+      `fixture ${name}: requirePolicyRead should be false when every requested agent is a full specification`
+    );
+  }
+}
 
 const requiredFiles = [
   "CHANGELOG.md",
@@ -88,6 +177,7 @@ const requiredFiles = [
   "scripts/validate-skill.mjs",
   "tests/smoke-install.sh",
   "tests/smoke-install.ps1",
+  "tests/fixtures/routing-cases.md",
   "package.json",
 ];
 

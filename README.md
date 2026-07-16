@@ -35,11 +35,11 @@ Then in Claude Code:
 
 ## Requirements
 
-1. [Claude Code](https://code.claude.com/docs/en/overview), version 2.1.203 or newer recommended.
+1. [Claude Code](https://code.claude.com/docs/en/overview), version 2.1.203 or newer required.
 2. Install the provider plugins you intend to use:
    - [Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc) for Codex workers.
-   - [Grok plugin for Claude Code](https://github.com/codemeall/grok-plugin-cc), version 0.2.0 or newer, for Grok workers.
-   - [Cursor plugin for Claude Code](https://github.com/codemeall/cursor-plugin-cc), version 0.1.0 or newer, for Cursor workers.
+   - [Grok plugin for Claude Code](https://github.com/codemeall/grok-plugin-cc), version 0.3.0 or newer, for Grok workers.
+   - [Cursor plugin for Claude Code](https://github.com/codemeall/cursor-plugin-cc), version 0.2.0 or newer, for Cursor workers.
 3. Authenticate each selected provider. Native Claude-only routing does not require an external plugin.
 4. Access to the models you select. Preview-model availability can vary by account and rollout stage.
 
@@ -47,12 +47,12 @@ Then in Claude Code:
 
 | Component | Minimum / notes |
 |---|---|
-| Claude Code | 2.1.203+ recommended |
+| Claude Code | 2.1.203+ required |
 | Skills CLI | Current `npx skills` with `--skill` |
 | GitHub CLI skills | `gh` 2.90.0+ |
 | Codex plugin | `codex@openai-codex` via openai/codex-plugin-cc |
-| Grok plugin | `grok@grok-plugin-cc` 0.2.0+ |
-| Cursor plugin | `cursor@cursor-plugin-cc` 0.1.0+; working `cursor-agent` CLI |
+| Grok plugin | `grok@grok-plugin-cc` 0.3.0+ |
+| Cursor plugin | `cursor@cursor-plugin-cc` 0.2.0+; working `cursor-agent` CLI |
 | PromptScript | Project-local installs only; no global skills dir |
 
 ### Set up Codex
@@ -102,7 +102,7 @@ curl https://cursor.com/install -fsS | bash
 cursor-agent login
 ```
 
-For CI or other non-interactive environments, set `CURSOR_API_KEY`. Then install and verify the Cursor plugin from inside Claude Code:
+As with the Grok installer, prefer verifying the installer source and comparing checksums when your environment requires supply-chain controls. For CI or other non-interactive environments, set `CURSOR_API_KEY`. Then install and verify the Cursor plugin from inside Claude Code:
 
 ```text
 /plugin marketplace add codemeall/cursor-plugin-cc
@@ -366,6 +366,22 @@ git pull
 The installed skill updates immediately because Claude Code reads it through the link.
 
 For a copied Windows installation, remove the installed copy and rerun `install.ps1` after pulling updates.
+
+### Updating provider plugins
+
+Fixes often land in the provider plugins rather than in this skill. Update the plugins you use from inside Claude Code:
+
+```text
+/plugin marketplace update openai-codex
+/plugin update codex@openai-codex
+/plugin marketplace update grok-plugin-cc
+/plugin update grok@grok-plugin-cc
+/plugin marketplace update cursor-plugin-cc
+/plugin update cursor@cursor-plugin-cc
+/reload-plugins
+```
+
+This skill version requires `grok-plugin-cc` 0.3.0+ and `cursor-plugin-cc` 0.2.0+, which return meaningful exit codes and fix `--stdin-args` argument handling. Re-run `/grok:setup` and `/cursor:setup` after updating.
 
 ## Uninstalling
 

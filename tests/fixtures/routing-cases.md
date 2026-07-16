@@ -30,8 +30,8 @@ They are checked by `tests/check-consistency.mjs`.
 - expectedWorkers: [codex-terra, grok]
 - writeMode: mixed
 - contract: full
-- requirePolicyRead: false
-- notes: grok full spec includes effort; codex-terra is an alias so policy read remains required because not every worker is a full specification
+- requirePolicyRead: true
+- notes: grok full spec includes effort, but codex-terra is an alias, so the policy read remains required because not every worker is a full specification
 
 ### quality-cursor-model
 - invocation: `/orchestrate-agents quality agents=codex-terra,cursor:composer-2.5 -- implement and cross-provider review`

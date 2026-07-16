@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-16
+
+### Added
+
+- Failure-detection guidance: companion exit codes do not signal run success; coordinators must inspect the `Succeeded:` line or background job `status` before reporting success
+- Routing fixtures in `tests/fixtures/routing-cases.md` are now parsed and enforced by `tests/check-consistency.mjs` (profile caps, worker counts, and policy-read rules)
+- `package.json` now declares `version` and `license`, cross-checked against `SKILL.md` and `CHANGELOG.md`
+
+### Changed
+
+- Minimum plugin versions raised: `grok-plugin-cc` 0.3.0+ and `cursor-plugin-cc` 0.2.0+ (releases with meaningful exit codes)
+- Version checks in `scripts/validate-skill.mjs` and `tests/check-consistency.mjs` are no longer hardcoded; they validate semver format and cross-file agreement
+
+### Fixed
+
+- `quality-grok-effort` fixture contradiction: `requirePolicyRead` is now `true`, matching its own rationale and SKILL.md rule
+- README now states Claude Code 2.1.203+ is required (was "recommended"), matching SKILL.md compatibility
+- `openai.yaml` default prompt uses `/orchestrate-agents` (was `$orchestrate-agents`)
+- Supply-chain verification note now also covers the Cursor CLI installer
+
 ## [1.1.0] - 2026-07-12
 
 ### Added
